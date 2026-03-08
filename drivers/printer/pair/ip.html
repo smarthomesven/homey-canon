@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      .error {
+        color: red;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <fieldset class="homey-form-fieldset">
+      <legend class="homey-form-legend">Canon</legend>
+      <br>
+      <div class="homey-form-group">
+        <label class="homey-form-label" for="ip" data-i18n="pair.ip">IP Address</label>
+        <input class="homey-form-input" id="ip" type="text" value="" />
+      </div>
+    </fieldset>
+
+    <p class="error" id="failed" style="display: none;" data-i18n="pair.failed">Printer unreachable</p>
+    <p class="error" id="noinput" style="display: none;" data-i18n="pair.noinput">Please enter an IP address</p>
+    <button id="save" class="homey-button-primary-full" data-i18n="pair.save">Save</button>
+    <script type="text/javascript">
+      const ipElement = document.getElementById('ip');
+      const errorElement = document.getElementById('failed');
+      const saveElement = document.getElementById('save');
+      const noInputElement = document.getElementById('noinput');
+      saveElement.addEventListener("click", function (e) {
+        setSaving();
+        errorElement.style.display = 'none';
+        noInputElement.style.display = 'none';
+        errorElement.textContent = Homey.__('pair.failed');
+        const ip = ipElement.value;
+        if (!ip) {
+          noInputElement.style.display = 'block';
+          setSave();
+          return;
+        }
+        Homey.emit("ip", { ip: ip }).then(function (result) {
+          if (result === false) {
+            errorElement.style.display = 'block';
+            setSave();
+          } else {
+            Homey.addDevice({
+              data: {
+                "ip": ip,
+              },
+              store: {
+                "ip": ip
+              },
+              name: "Printer"
+            }, (err, result) => {
+              if (err) {
+                setSave();
+                errorElement.style.display = 'block';
+                if (err.message === "Duplicate Device Data") {
+                    errorElement.textContent = Homey.__('pair.duplicate');
+                }
+                return;
+              }
+              Homey.done();
+            });
+          }
+        });
+      });
+      function setSave() {
+        saveElement.className = 'homey-button-primary-full';
+        saveElement.textContent = Homey.__('pair.save');
+        ipElement.disabled = false;
+      }
+
+      function setSaving() {
+        saveElement.className = 'homey-button-primary-full is-loading';
+        saveElement.textContent = Homey.__('pair.saving');
+        ipElement.disabled = true;
+      }
+    </script>
+  </body>
+</html>

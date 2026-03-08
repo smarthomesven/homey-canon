@@ -1,0 +1,13 @@
+{
+  "pair": {
+    "save": "Save",
+    "saving": "Saving",
+    "ip": "IP address",
+    "noinput": "Please enter an IP address",
+    "failed": "Printer unreachable or not supported",
+    "duplicate": "Device is already added"
+  },
+  "errors": {
+    "unreachable": "Printer is unreachable, is it powered on and connected to the network?"
+  }
+}

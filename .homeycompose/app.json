@@ -1,0 +1,34 @@
+{
+  "id": "canon.global",
+  "version": "1.0.0",
+  "compatibility": ">=12.4.0",
+  "sdk": 3,
+  "platforms": [
+    "local"
+  ],
+  "name": {
+    "en": "Canon"
+  },
+  "description": {
+    "en": "Printing has never been smarter",
+    "nl": "Printen is nog nooit zo slim geweest"
+  },
+  "category": [
+    "appliances"
+  ],
+  "permissions": [],
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "brandColor": "#CC0000",
+  "source": "https://github.com/smarthomesven/homey-canon",
+  "bugs": {
+    "url": "https://github.com/smarthomesven/homey-canon/issues"
+  },
+  "author": {
+    "name": "Sven Serlier",
+    "email": "sven@dypodex.com"
+  }
+}

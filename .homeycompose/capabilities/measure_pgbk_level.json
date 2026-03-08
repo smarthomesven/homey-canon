@@ -1,0 +1,15 @@
+{
+  "type": "number",
+  "title": {
+    "en": "PGBK ink level",
+    "nl": "PGBK inktniveau"
+  },
+  "uiComponent": "sensor",
+  "units": {
+    "en": "%"
+  },
+  "getable": true,
+  "setable": false,
+  "insights": true,
+  "icon": "/assets/ink.svg"
+}

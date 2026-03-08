@@ -1,0 +1,13 @@
+{
+    "pair": {
+        "save": "Opslaan",
+        "saving": "Opslaan",
+        "ip": "IP-adres",
+        "noinput": "Voer een IP-adres in",
+        "failed": "Printer onbereikbaar of niet ondersteund",
+        "duplicate": "Printer is al toegevoegd"
+    },
+    "errors": {
+        "unreachable": "Printer is onbereikbaar, is deze ingeschakeld en verbonden met het netwerk?"
+    }
+}
