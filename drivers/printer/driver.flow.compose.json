@@ -1,0 +1,39 @@
+{
+  "triggers": [
+    {
+      "id": "measure_bk_level_changed",
+      "title": {
+        "en": "BK ink level changed",
+        "nl": "BK inktniveau veranderd"
+      }
+    },
+    {
+      "id": "measure_pgbk_level_changed",
+      "title": {
+        "en": "PGBK ink level changed",
+        "nl": "PGBK inktniveau veranderd"
+      }
+    },
+    {
+      "id": "measure_c_level_changed",
+      "title": {
+        "en": "Cyan ink level changed",
+        "nl": "Cyan inktniveau veranderd"
+      }
+    },
+    {
+      "id": "measure_m_level_changed",
+      "title": {
+        "en": "Magenta ink level changed",
+        "nl": "Magenta inktniveau veranderd"
+      }
+    },
+    {
+      "id": "measure_y_level_changed",
+      "title": {
+        "en": "Yellow ink level changed",
+        "nl": "Yellow inktniveau veranderd"
+      }
+    }
+  ]
+}

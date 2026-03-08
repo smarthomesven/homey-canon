@@ -11,7 +11,8 @@
     "en": "Canon"
   },
   "description": {
-    "en": "Printing has never been smarter"
+    "en": "Printing has never been smarter",
+    "nl": "Printen is nog nooit zo slim geweest"
   },
   "category": [
     "appliances"
@@ -30,6 +31,80 @@
   "author": {
     "name": "Sven Serlier",
     "email": "sven@dypodex.com"
+  },
+  "flow": {
+    "triggers": [
+      {
+        "id": "measure_bk_level_changed",
+        "title": {
+          "en": "BK ink level changed",
+          "nl": "BK inktniveau veranderd"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=printer"
+          }
+        ]
+      },
+      {
+        "id": "measure_pgbk_level_changed",
+        "title": {
+          "en": "PGBK ink level changed",
+          "nl": "PGBK inktniveau veranderd"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=printer"
+          }
+        ]
+      },
+      {
+        "id": "measure_c_level_changed",
+        "title": {
+          "en": "Cyan ink level changed",
+          "nl": "Cyan inktniveau veranderd"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=printer"
+          }
+        ]
+      },
+      {
+        "id": "measure_m_level_changed",
+        "title": {
+          "en": "Magenta ink level changed",
+          "nl": "Magenta inktniveau veranderd"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=printer"
+          }
+        ]
+      },
+      {
+        "id": "measure_y_level_changed",
+        "title": {
+          "en": "Yellow ink level changed",
+          "nl": "Yellow inktniveau veranderd"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=printer"
+          }
+        ]
+      }
+    ]
   },
   "drivers": [
     {

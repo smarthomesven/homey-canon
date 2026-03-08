@@ -5,7 +5,7 @@
     "ip": "IP-adres",
     "noinput": "Voer een IP-adres in",
     "failed": "Printer onbereikbaar of niet ondersteund",
-    "duplicate": "Apparaat is al toegevoegd"
+    "duplicate": "Printer is al toegevoegd"
   },
   "errors": {
     "unreachable": "Printer is onbereikbaar, is deze ingeschakeld en verbonden met het netwerk?"
