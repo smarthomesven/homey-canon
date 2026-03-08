@@ -4,5 +4,8 @@
   },
   "1.0.1": {
     "en": "Fix Flow cards"
+  },
+  "1.0.2": {
+    "en": "Added forum topic ID to the app manifest"
   }
 }
