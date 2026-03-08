@@ -7,5 +7,8 @@
   },
   "1.0.2": {
     "en": "Added forum topic ID to the app manifest"
+  },
+  "1.0.3": {
+    "en": "Increased compatibility"
   }
 }
