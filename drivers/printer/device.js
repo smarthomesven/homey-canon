@@ -15,8 +15,8 @@ module.exports = class PrinterDevice extends Homey.Device {
     this.log('PrinterDevice has been initialized');
     this._interval = this.homey.setInterval(async () => {
       await this.pollPrinterStatus();
-    }, 5 * 60 * 1000); // Update every 5 minutes
-    await this.pollPrinterStatus(); // Initial status update
+    }, 2 * 60 * 1000);
+    await this.pollPrinterStatus();
   }
 
   async pollPrinterStatus() {
