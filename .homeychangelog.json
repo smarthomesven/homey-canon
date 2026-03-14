@@ -10,5 +10,8 @@
   },
   "1.0.3": {
     "en": "Increased compatibility"
+  },
+  "1.0.4": {
+    "en": "Increased polling from 5min to 2min"
   }
 }
