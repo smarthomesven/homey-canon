@@ -13,5 +13,8 @@
   },
   "1.0.4": {
     "en": "Increased polling from 5min to 2min"
+  },
+  "1.1.0": {
+    "en": "Added support for iX6800 series"
   }
 }
