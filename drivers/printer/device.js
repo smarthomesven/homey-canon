@@ -13,52 +13,92 @@ module.exports = class PrinterDevice extends Homey.Device {
    */
   async onInit() {
     this.log('PrinterDevice has been initialized');
-    this._interval = this.homey.setInterval(async () => {
+    if (!this.getStoreValue('method')) {
+      await this.setStoreValue('method', 1);
+    }
+    if (this.getStoreValue('method') === 1) {
+      this._interval = this.homey.setInterval(async () => {
+        await this.pollPrinterStatus();
+      }, 2 * 60 * 1000);
       await this.pollPrinterStatus();
-    }, 2 * 60 * 1000);
-    await this.pollPrinterStatus();
+    } else if (this.getStoreValue('method') === 2) {
+      this._interval = this.homey.setInterval(async () => {
+        await this.pollPrinterStatus2();
+      }, 2 * 60 * 1000);
+      await this.pollPrinterStatus2();
+    }
   }
 
   async pollPrinterStatus() {
     try {
       const status = await this.getCanonPrinterStatus(this.getStoreValue('ip'));
-      this.setAvailable();
-      this.setCapabilityValue('measure_bk_level', status.ink.BK.levelPercent);
-      this.setCapabilityValue('measure_m_level', status.ink.M.levelPercent);
-      this.setCapabilityValue('measure_c_level', status.ink.C.levelPercent);
-      this.setCapabilityValue('measure_pgbk_level', status.ink.PGBK.levelPercent);
-      this.setCapabilityValue('measure_y_level', status.ink.Y.levelPercent);
-      this.setCapabilityValue('measure_signal_strength', status.signalStrength);
+      await this.setAvailable();
+      await this.setCapabilityValue('measure_bk_level', status.ink.BK.levelPercent);
+      await this.setCapabilityValue('measure_m_level', status.ink.M.levelPercent);
+      await this.setCapabilityValue('measure_c_level', status.ink.C.levelPercent);
+      await this.setCapabilityValue('measure_pgbk_level', status.ink.PGBK.levelPercent);
+      await this.setCapabilityValue('measure_y_level', status.ink.Y.levelPercent);
+      await this.setCapabilityValue('measure_signal_strength', status.signalStrength);
     } catch (error) {
       this.error('Error updating printer status:', error.message);
-      this.setUnavailable(this.homey.__('errors.unreachable'));
+      await this.setUnavailable(this.homey.__('errors.unreachable'));
     }
-}
+  }
+
+  async pollPrinterStatus2() {
+    try {
+      const status = await this.getCanonPrinterStatus2(this.getStoreValue('ip'));
+      await this.setAvailable();
+      await this.setCapabilityValue('measure_signal_strength', status.signalStrength);
+    } catch (error) {
+      this.error('Error updating printer status:', error.message);
+      await this.setUnavailable(this.homey.__('errors.unreachable'));
+    }
+  }
 
   async getCanonPrinterStatus(printerIp) {
-    const res = await axios.get(`http://${printerIp}/JS_MDL/model.js`);
-    const js = await res.data;
+    try {
+      const res = await axios.get(`http://${printerIp}/JS_MDL/model.js`);
+      const js = await res.data;
 
-    const inkLevels = {};
-    const inkRegex = /inktank\[\d+\]=\[(\d+),(\d+),(\d+)\];/g;
-    let match;
-    while ((match = inkRegex.exec(js)) !== null) {
-      const [, colorId, levelIndex, statusIndex] = match.map(Number);
-      const colorName = COLOR_MAP[colorId] ?? `INK_${colorId}`;
-      inkLevels[colorName] = {
-        levelPercent: INK_LEVEL_MAP[levelIndex],  // null if unknown
-        status: INK_STATUS_MAP[statusIndex] ?? 'unknown',
+      const inkLevels = {};
+      const inkRegex = /inktank\[\d+\]=\[(\d+),(\d+),(\d+)\];/g;
+      let match;
+      while ((match = inkRegex.exec(js)) !== null) {
+        const [, colorId, levelIndex, statusIndex] = match.map(Number);
+        const colorName = COLOR_MAP[colorId] ?? `INK_${colorId}`;
+        inkLevels[colorName] = {
+          levelPercent: INK_LEVEL_MAP[levelIndex],  // null if unknown
+          status: INK_STATUS_MAP[statusIndex] ?? 'unknown',
+        };
+      }
+
+      const signalMatch = js.match(/g_signal_strength\s*=\s*'(\d+)'/);
+      const linkMatch   = js.match(/g_link_quality\s*=\s*'(\d+)'/);
+
+      return {
+        ink: inkLevels,
+        signalStrength: signalMatch ? parseInt(signalMatch[1]) : null,
+        linkQuality:    linkMatch   ? parseInt(linkMatch[1])   : null,
       };
+    } catch (error) {
+      throw new Error('Failed to fetch or parse printer status: ' + error.message);
     }
+  }
 
-    const signalMatch = js.match(/g_signal_strength\s*=\s*'(\d+)'/);
-    const linkMatch   = js.match(/g_link_quality\s*=\s*'(\d+)'/);
-
-    return {
-      ink: inkLevels,
-      signalStrength: signalMatch ? parseInt(signalMatch[1]) : null,
-      linkQuality:    linkMatch   ? parseInt(linkMatch[1])   : null,
-    };
+  async getCanonPrinterStatus2(printerIp) {
+    try {
+      const { data } = await axios.get(`http://${printerIp}/errindex.html`);
+      const match = data.match(/Signal Strength[\s\S]*?<td[^>]*>\s*(\d+%)\s*<\/td>/);
+      if (!match) throw new Error('Signal Strength not found');
+      const raw = match[1];
+      const value = parseInt(raw);   // 54
+      return {
+        signalStrength: value,
+      };
+    } catch (error) {
+      throw new Error('Failed to fetch or parse printer status (method 2): ' + error.message);
+    }
   }
 
   /**
@@ -66,6 +106,13 @@ module.exports = class PrinterDevice extends Homey.Device {
    */
   async onAdded() {
     this.log('PrinterDevice has been added');
+    if (this.getStoreValue('method') === 2) {
+      await this.removeCapability('measure_bk_level');
+      await this.removeCapability('measure_m_level');
+      await this.removeCapability('measure_c_level');
+      await this.removeCapability('measure_pgbk_level');
+      await this.removeCapability('measure_y_level');
+    }
   }
 
   /**
@@ -94,6 +141,9 @@ module.exports = class PrinterDevice extends Homey.Device {
    */
   async onDeleted() {
     this.log('PrinterDevice has been deleted');
+    if (this._interval) {
+      this.homey.clearInterval(this._interval);
+    }
   }
 
 };

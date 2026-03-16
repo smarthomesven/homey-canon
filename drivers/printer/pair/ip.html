@@ -38,7 +38,7 @@
           return;
         }
         Homey.emit("ip", { ip: ip }).then(function (result) {
-          if (result === false) {
+          if (result.success === false) {
             errorElement.style.display = 'block';
             setSave();
           } else {
@@ -47,7 +47,8 @@
                 "ip": ip,
               },
               store: {
-                "ip": ip
+                "ip": ip,
+                "method": result.method
               },
               name: "Printer"
             }, (err, result) => {
@@ -55,7 +56,7 @@
                 setSave();
                 errorElement.style.display = 'block';
                 if (err.message === "Duplicate Device Data") {
-                    errorElement.textContent = Homey.__('pair.duplicate');
+                  errorElement.textContent = Homey.__('pair.duplicate');
                 }
                 return;
               }

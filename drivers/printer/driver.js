@@ -14,14 +14,24 @@ module.exports = class PrinterDriver extends Homey.Driver {
 
   async onPair(session) {
     session.setHandler("ip", async (data) => {
+      const ip = data.ip;
       try {
         this.log('Checking IP address:', data.ip);
-        const ip = data.ip;
         const response = await axios.get(`http://${ip}/JS_MDL/model.js`, { timeout: 5000 });
-        return true;
+        return { success: true, method: 1 };
       } catch (error) {
+        if (error?.response?.status === 404) {
+          // attempt method 2
+          try {
+          const response = await axios.get(`http://${ip}/errindex.html`, { timeout: 5000 });
+          return { success: true, method: 2 };
+          } catch (err) {
+            this.error('Error during method 2 IP check:', err.message);
+            return { success: false };
+          }
+        }
         this.error('Error during IP check:', error.message);
-        return false;
+        return { success: false };
       }
     });
   }
