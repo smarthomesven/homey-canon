@@ -70,6 +70,7 @@ module.exports = class PrinterDevice extends Homey.Device {
       await this.setCapabilityValue('measure_signal_strength', status.signalStrength);
     } catch (error) {
       this.error('Error updating printer status:', error.message);
+      this.log('Stack trace:', error.stack);
       await this.setUnavailable(this.homey.__('errors.unreachable'));
     }
   }
@@ -107,7 +108,9 @@ module.exports = class PrinterDevice extends Homey.Device {
   async getCanonPrinterStatus2(printerIp) {
     try {
       const { data } = await axios.get(`http://${printerIp}/errindex.html`);
+      this.log('Fetched errindex.html');
       const res = await axios.get(`http://${printerIp}/js/model.js`);
+      this.log('Fetched js/model.js');
       const js = await res.data;
       const inkLevels = {};
       const inkRegex = /inktank\[\d+\]=\[(\d+),(\d+),(\d+)\];/g;
