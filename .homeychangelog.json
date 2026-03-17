@@ -19,5 +19,8 @@
   },
   "1.2.0": {
     "en": "Added support for ink levels on iX6850"
+  },
+  "1.2.1": {
+    "en": "Added more logging"
   }
 }
