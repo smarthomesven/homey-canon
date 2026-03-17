@@ -25,5 +25,8 @@
   },
   "1.2.2": {
     "en": "Fixed socket hang up error"
+  },
+  "1.2.3": {
+    "en": "Fix HTTP connection issues"
   }
 }
