@@ -28,5 +28,8 @@
   },
   "1.2.3": {
     "en": "Fix HTTP connection issues"
+  },
+  "1.2.4": {
+    "en": "Fix BK/PGBK for comms method 2"
   }
 }
