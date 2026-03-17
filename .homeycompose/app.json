@@ -1,7 +1,7 @@
 {
   "id": "canon.global",
   "version": "1.2.4",
-  "compatibility": ">=12.2.0",
+  "compatibility": ">=12.3.0",
   "sdk": 3,
   "platforms": [
     "local"

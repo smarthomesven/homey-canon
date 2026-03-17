@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background-color: var(--homey-background-color);
+      color: var(--homey-text-color);
+    }
+
+    /* ── Layout ────────────────────────────────────────────── */
+    .widget-root {
+      display: flex;
+      flex-direction: column;
+      gap: var(--homey-su-4);
+      padding: var(--homey-su-4);
+    }
+
+    /* ── Ink rows ──────────────────────────────────────────── */
+    .ink-rows {
+      display: flex;
+      flex-direction: column;
+      gap: var(--homey-su-2);
+    }
+
+    .ink-row {
+      display: grid;
+      grid-template-columns: 52px 1fr auto;
+      align-items: center;
+      gap: var(--homey-su-3);
+    }
+
+    .ink-label {
+      font-size: var(--homey-font-size-small);
+      font-weight: var(--homey-font-weight-medium);
+      line-height: var(--homey-line-height-small);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    /* ── Progress bar ──────────────────────────────────────── */
+    .ink-bar-track {
+      width: 100%;
+      height: 18px;
+      background-color: var(--homey-color-mono-200, #d0d0d0);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .ink-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.4s ease;
+      min-width: 18px; /* always show a dot-like nub at 0% */
+    }
+
+    /* Ink colours */
+    .ink-bar-fill[data-ink="Y"]    { background-color: #FFD700; }
+    .ink-bar-fill[data-ink="C"]    { background-color: #00BFFF; }
+    .ink-bar-fill[data-ink="M"]    { background-color: #FF00FF; }
+    .ink-bar-fill[data-ink="PGBK"] { background-color: #000000; }
+    .ink-bar-fill[data-ink="BK"]   { background-color: #000000; }
+
+    /* ── Warning icon ──────────────────────────────────────── */
+    .ink-warning {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background-color: var(--homey-color-red, #ff3b30);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .ink-warning.visible {
+      opacity: 1;
+    }
+
+    .ink-warning svg {
+      width: 13px;
+      height: 13px;
+      fill: white;
+    }
+
+    /* ── Buttons ───────────────────────────────────────────── */
+    .button-row {
+      display: flex;
+      gap: var(--homey-su-3);
+      justify-content: center;
+      padding-top: var(--homey-su-1);
+    }
+
+    .homey-btn {
+      flex: 1;
+      padding: var(--homey-su-2) var(--homey-su-3);
+      font-size: var(--homey-font-size-small);
+      font-weight: var(--homey-font-weight-medium);
+      line-height: var(--homey-line-height-small);
+      color: var(--homey-text-color);
+      background-color: var(--homey-color-mono-100, #e5e5e5);
+      border: none;
+      border-radius: var(--homey-border-radius-default, 12px);
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease;
+    }
+
+    .homey-btn:hover {
+      background-color: var(--homey-color-mono-200, #d0d0d0);
+    }
+
+    .homey-btn:active {
+      background-color: var(--homey-color-mono-300, #b0b0b0);
+    }
+
+    /* Dark mode tweaks */
+    .homey-dark-mode .ink-bar-track {
+      background-color: var(--homey-color-mono-200, #444);
+    }
+
+    .homey-dark-mode .homey-btn {
+      background-color: var(--homey-color-mono-100, #333);
+    }
+
+    .homey-dark-mode .homey-btn:hover {
+      background-color: var(--homey-color-mono-200, #444);
+    }
+  </style>
+</head>
+<body class="homey-widget">
+
+  <div class="widget-root">
+
+    <!-- Ink level rows -->
+    <div class="ink-rows" id="inkRows">
+      <!-- Rows injected by JS -->
+    </div>
+
+    <!-- Action buttons -->
+    <div style="display: none;" class="button-row">
+      <a class="homey-btn" id="btnInkNumbers" href="#" target="_blank">Ink numbers</a>
+      <a class="homey-btn" id="btnOrderInk"   href="#" target="_blank">Order ink</a>
+    </div>
+
+  </div>
+
+  <script>
+  /**
+   * ══════════════════════════════════════════════════════════════
+   *  Homey Ink Levels Widget
+   * ══════════════════════════════════════════════════════════════
+   *
+   *  Public API (call these from your communication functions):
+   *
+   *  InkWidget.setLevel(ink, level)
+   *    ink   – one of: 'Y' | 'C' | 'M' | 'PGBK' | 'BK'
+   *    level – integer 0–100, snapped to nearest 10
+   *            0 = near-empty (small nub), 100 = full
+   *
+   *  InkWidget.setLevels({ Y: 0, C: 50, M: 50, PGBK: 100, BK: 60 })
+   *    Set all levels at once.
+   *
+   *  InkWidget.setWarning(ink, visible)
+   *    ink     – ink key (string)
+   *    visible – boolean; shows/hides the ✕ badge
+   *
+   *  InkWidget.setWarnings({ Y: true, C: false, ... })
+   *    Set warnings for multiple inks at once.
+   *
+   *  InkWidget.setUrl(button, url)
+   *    button – 'inkNumbers' | 'orderInk'
+   *    url    – full URL string
+   *
+   *  InkWidget.setUrls({ inkNumbers: '...', orderInk: '...' })
+   *    Set both button URLs at once.
+   *
+   * ══════════════════════════════════════════════════════════════
+   */
+
+  const INK_KEYS = ['Y', 'C', 'M', 'PGBK', 'BK'];
+
+  // Internal state
+  const _state = {
+    levels:   { Y: 0,     C: 50,  M: 50,  PGBK: 100, BK: 60 },
+    warnings: { Y: true,  C: false, M: false, PGBK: false, BK: false },
+    urls:     { inkNumbers: '#', orderInk: '#' },
+  };
+
+  // ── DOM bootstrap ─────────────────────────────────────────────
+  function buildRows() {
+    const container = document.getElementById('inkRows');
+    INK_KEYS.forEach(ink => {
+      const row = document.createElement('div');
+      row.className = 'ink-row';
+      row.innerHTML = `
+        <span class="ink-label homey-text-small">${ink}</span>
+        <div class="ink-bar-track" role="progressbar"
+             aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"
+             aria-label="${ink} ink level">
+          <div class="ink-bar-fill" data-ink="${ink}" style="width:0%"></div>
+        </div>
+        <div class="ink-warning" id="warn-${ink}" aria-label="Low ink warning">
+          <svg viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1.5 1.5 L10.5 10.5 M10.5 1.5 L1.5 10.5"
+                  stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+        </div>`;
+      container.appendChild(row);
+    });
+  }
+
+  // ── Rendering ─────────────────────────────────────────────────
+  function renderLevel(ink) {
+    const pct = Math.min(100, Math.max(0, Math.round(_state.levels[ink] / 10) * 10));
+    const fill  = document.querySelector(`.ink-bar-fill[data-ink="${ink}"]`);
+    const track = fill?.parentElement;
+    if (!fill || !track) return;
+
+    // 0% shows a small nub (~18px) via min-width; clamp visual to avoid overflow
+    const visualPct = pct === 0 ? 0 : pct; // min-width CSS handles the nub
+    fill.style.width = `${visualPct}%`;
+    track.setAttribute('aria-valuenow', pct);
+  }
+
+  function renderWarning(ink) {
+    const el = document.getElementById(`warn-${ink}`);
+    if (!el) return;
+    el.classList.toggle('visible', !!_state.warnings[ink]);
+  }
+
+  function renderUrls() {
+    document.getElementById('btnInkNumbers').href = _state.urls.inkNumbers;
+    document.getElementById('btnOrderInk').href   = _state.urls.orderInk;
+  }
+
+  // ── Public API ────────────────────────────────────────────────
+  window.InkWidget = {
+    setLevel(ink, level) {
+      if (!INK_KEYS.includes(ink)) return;
+      _state.levels[ink] = level;
+      renderLevel(ink);
+    },
+
+    setLevels(obj) {
+      Object.entries(obj).forEach(([k, v]) => this.setLevel(k, v));
+    },
+
+    setWarning(ink, visible) {
+      if (!INK_KEYS.includes(ink)) return;
+      _state.warnings[ink] = visible;
+      renderWarning(ink);
+    },
+
+    setWarnings(obj) {
+      Object.entries(obj).forEach(([k, v]) => this.setWarning(k, v));
+    },
+
+    setUrl(button, url) {
+      if (button === 'inkNumbers') _state.urls.inkNumbers = url;
+      else if (button === 'orderInk') _state.urls.orderInk = url;
+      renderUrls();
+    },
+
+    setUrls(obj) {
+      if (obj.inkNumbers) this.setUrl('inkNumbers', obj.inkNumbers);
+      if (obj.orderInk)   this.setUrl('orderInk',   obj.orderInk);
+    },
+  };
+
+  // ── Init ──────────────────────────────────────────────────────
+  buildRows();
+  INK_KEYS.forEach(ink => { renderLevel(ink); renderWarning(ink); });
+  renderUrls();
+
+  // ── Homey integration ─────────────────────────────────────────
+  function onHomeyReady(Homey) {
+    Homey.ready({ height: 200 });
+
+    // Example: pull initial data from your app API
+    Homey.api('POST', '/levels', { device: Homey.getDeviceIds()[0] })
+       .then(data => {
+         InkWidget.setLevels(data.levels);
+         InkWidget.setWarnings(data.warnings);
+        // InkWidget.setUrls(data.urls);
+       })
+       .catch(console.error);
+
+    // Example: listen for realtime updates pushed from your app
+    // Homey.on('inkUpdate', data => {
+    //   if (data.levels)   InkWidget.setLevels(data.levels);
+    //   if (data.warnings) InkWidget.setWarnings(data.warnings);
+    // });
+  }
+  </script>
+</body>
+</html>

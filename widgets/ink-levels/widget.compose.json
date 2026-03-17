@@ -1,0 +1,18 @@
+{
+  "name": {
+    "en": "Ink levels",
+    "nl": "Inktniveaus"
+  },
+  "devices": {
+    "type": "app",
+    "singular": true
+  },
+  "height": 188,
+  "settings": [],
+  "api": {
+    "getLevels": {
+      "method": "POST",
+      "path": "/levels"
+    }
+  }
+}
