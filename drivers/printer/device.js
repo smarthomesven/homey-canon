@@ -107,9 +107,13 @@ module.exports = class PrinterDevice extends Homey.Device {
 
   async getCanonPrinterStatus2(printerIp) {
     try {
-      const { data } = await axios.get(`http://${printerIp}/errindex.html`);
+      const ip = printerIp;
+      if (!ip) {
+        throw new Error('Printer IP address is not set');
+      }
+      const { data } = await axios.get(`http://${ip}/errindex.html`);
       this.log('Fetched errindex.html');
-      const res = await axios.get(`http://${printerIp}/js/model.js`);
+      const res = await axios.get(`http://${ip}/js/model.js`);
       this.log('Fetched js/model.js');
       const js = await res.data;
       const inkLevels = {};
