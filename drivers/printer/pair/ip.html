@@ -2,16 +2,53 @@
 <html>
   <head>
     <style>
+      .description {
+        margin-top: 0;
+        margin-bottom: 16px;
+        color: #666;
+        font-size: 14px;
+      }
+
       .error {
         color: red;
         display: none;
+      }
+
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: end;
+      }
+
+      .row .homey-form-group {
+        flex: 1;
+      }
+
+      .secondary-button {
+        min-width: 120px;
+      }
+
+      .hint {
+        margin-top: 8px;
+        color: #666;
+        font-size: 13px;
       }
     </style>
   </head>
   <body>
     <fieldset class="homey-form-fieldset">
       <legend class="homey-form-legend">Canon</legend>
-      <br>
+      <p class="description" data-i18n="pair.description">Select a discovered printer or enter its IP address manually.</p>
+      <div class="row">
+        <div class="homey-form-group">
+          <label class="homey-form-label" for="printerSelect" data-i18n="pair.discovered">Discovered printers</label>
+          <select class="homey-form-input" id="printerSelect">
+            <option value="" data-i18n="pair.discovering">Searching for printers...</option>
+          </select>
+        </div>
+        <button id="refresh" type="button" class="homey-button-secondary secondary-button" data-i18n="pair.refresh">Refresh</button>
+      </div>
+      <p class="hint" id="discoveryHint" data-i18n="pair.discovery_hint">Discovery fills in the IP automatically when a supported printer is found.</p>
       <div class="homey-form-group">
         <label class="homey-form-label" for="ip" data-i18n="pair.ip">IP Address</label>
         <input class="homey-form-input" id="ip" type="text" value="" />
@@ -20,16 +57,93 @@
 
     <p class="error" id="failed" style="display: none;" data-i18n="pair.failed">Printer unreachable</p>
     <p class="error" id="noinput" style="display: none;" data-i18n="pair.noinput">Please enter an IP address</p>
+    <p class="error" id="discoveryError" style="display: none;" data-i18n="pair.discovery_error">Unable to discover printers right now.</p>
     <button id="save" class="homey-button-primary-full" data-i18n="pair.save">Save</button>
     <script type="text/javascript">
       const ipElement = document.getElementById('ip');
+      const printerSelectElement = document.getElementById('printerSelect');
+      const refreshElement = document.getElementById('refresh');
       const errorElement = document.getElementById('failed');
       const saveElement = document.getElementById('save');
       const noInputElement = document.getElementById('noinput');
+      const discoveryErrorElement = document.getElementById('discoveryError');
+      let discoveredPrinters = [];
+      let isSaving = false;
+      let isDiscovering = false;
+
+      function getPrinterName(ip) {
+        const selectedPrinter = discoveredPrinters.find((printer) => printer.ip === ip);
+        if (selectedPrinter && selectedPrinter.name) {
+          return selectedPrinter.name;
+        }
+
+        return `Canon Printer (${ip})`;
+      }
+
+      function renderPrinterOptions(printers) {
+        discoveredPrinters = printers;
+        printerSelectElement.innerHTML = '';
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = printers.length
+          ? Homey.__('pair.select_placeholder')
+          : Homey.__('pair.no_printers_found');
+        printerSelectElement.appendChild(placeholder);
+
+        printers.forEach((printer) => {
+          const option = document.createElement('option');
+          option.value = printer.ip;
+          option.textContent = `${printer.name} (${printer.ip})`;
+          printerSelectElement.appendChild(option);
+        });
+      }
+
+      function setDiscovering(discovering) {
+        isDiscovering = discovering;
+        refreshElement.disabled = isSaving || isDiscovering;
+        printerSelectElement.disabled = isSaving || isDiscovering;
+        if (isDiscovering) {
+          printerSelectElement.innerHTML = '';
+          const loadingOption = document.createElement('option');
+          loadingOption.value = '';
+          loadingOption.textContent = Homey.__('pair.discovering');
+          printerSelectElement.appendChild(loadingOption);
+        }
+      }
+
+      function discoverPrinters() {
+        discoveryErrorElement.style.display = 'none';
+        setDiscovering(true);
+
+        return Homey.emit('discover')
+          .then((printers) => {
+            renderPrinterOptions(printers || []);
+          })
+          .catch(() => {
+            renderPrinterOptions([]);
+            discoveryErrorElement.style.display = 'block';
+          })
+          .finally(() => {
+            setDiscovering(false);
+          });
+      }
+
+      printerSelectElement.addEventListener('change', function () {
+        if (printerSelectElement.value) {
+          ipElement.value = printerSelectElement.value;
+        }
+      });
+
+      refreshElement.addEventListener('click', function () {
+        discoverPrinters();
+      });
+
       saveElement.addEventListener("click", function (e) {
         setSaving();
         errorElement.style.display = 'none';
         noInputElement.style.display = 'none';
+        discoveryErrorElement.style.display = 'none';
         errorElement.textContent = Homey.__('pair.failed');
         const ip = ipElement.value;
         if (!ip) {
@@ -51,7 +165,7 @@
                 "method": result.method,
                 "ink_level_migration_done": true,
               },
-              name: "Printer"
+              name: getPrinterName(ip)
             }, (err, result) => {
               if (err) {
                 setSave();
@@ -64,19 +178,30 @@
               Homey.done();
             });
           }
+        }).catch(function () {
+          errorElement.style.display = 'block';
+          setSave();
         });
       });
       function setSave() {
+        isSaving = false;
         saveElement.className = 'homey-button-primary-full';
         saveElement.textContent = Homey.__('pair.save');
         ipElement.disabled = false;
+        printerSelectElement.disabled = isDiscovering;
+        refreshElement.disabled = isDiscovering;
       }
 
       function setSaving() {
+        isSaving = true;
         saveElement.className = 'homey-button-primary-full is-loading';
         saveElement.textContent = Homey.__('pair.saving');
         ipElement.disabled = true;
+        printerSelectElement.disabled = true;
+        refreshElement.disabled = true;
       }
+
+      discoverPrinters();
     </script>
   </body>
 </html>

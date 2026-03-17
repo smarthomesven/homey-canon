@@ -1,7 +1,7 @@
 'use strict';
 
 const Homey = require('homey');
-const axios = require('axios');
+const { detectCanonPrinter, discoverCanonPrinters } = require('../../lib/canon-printer');
 
 module.exports = class PrinterDriver extends Homey.Driver {
 
@@ -13,23 +13,19 @@ module.exports = class PrinterDriver extends Homey.Driver {
   }
 
   async onPair(session) {
+    session.setHandler('discover', async () => {
+      const printers = await discoverCanonPrinters();
+      this.log(`Discovered ${printers.length} Canon printer(s) on the local network`);
+      return printers;
+    });
+
     session.setHandler("ip", async (data) => {
       const ip = data.ip;
       try {
         this.log('Checking IP address:', data.ip);
-        const response = await axios.get(`http://${ip}/JS_MDL/model.js`, { timeout: 5000 });
-        return { success: true, method: 1 };
+        const printer = await detectCanonPrinter(ip, { timeout: 5000 });
+        return { success: true, method: printer.method };
       } catch (error) {
-        if (error?.response?.status === 404) {
-          // attempt method 2
-          try {
-          const response = await axios.get(`http://${ip}/errindex.html`, { timeout: 5000 });
-          return { success: true, method: 2 };
-          } catch (err) {
-            this.error('Error during method 2 IP check:', err.message);
-            return { success: false };
-          }
-        }
         this.error('Error during IP check:', error.message);
         return { success: false };
       }

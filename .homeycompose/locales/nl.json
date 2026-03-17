@@ -1,5 +1,13 @@
 {
     "pair": {
+        "description": "Selecteer een gevonden printer of voer het IP-adres handmatig in.",
+        "discovered": "Gevonden printers",
+        "discovering": "Zoeken naar printers...",
+        "refresh": "Vernieuwen",
+        "discovery_hint": "Bij een ondersteunde printer wordt het IP-adres automatisch ingevuld.",
+        "select_placeholder": "Selecteer een gevonden printer",
+        "no_printers_found": "Geen Canon-printers gevonden",
+        "discovery_error": "Kan nu geen printers ontdekken.",
         "save": "Opslaan",
         "saving": "Opslaan",
         "ip": "IP-adres",

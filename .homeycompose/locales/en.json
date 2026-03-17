@@ -1,5 +1,13 @@
 {
     "pair": {
+        "description": "Select a discovered printer or enter its IP address manually.",
+        "discovered": "Discovered printers",
+        "discovering": "Searching for printers...",
+        "refresh": "Refresh",
+        "discovery_hint": "Discovery fills in the IP automatically when a supported printer is found.",
+        "select_placeholder": "Select a discovered printer",
+        "no_printers_found": "No Canon printers found",
+        "discovery_error": "Unable to discover printers right now.",
         "save": "Save",
         "saving": "Saving",
         "ip": "IP address",

@@ -6,6 +6,21 @@ const INK_LEVEL_MAP = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0, null];
 const INK_STATUS_MAP = ['ok', 'low', 'empty', 'unrecognized'];
 const COLOR_MAP = { 0: 'BK', 1: 'PGBK', 2: 'C', 3: 'M', 4: 'Y' };
 const M2_COLOR_MAP = { 0: 'M', 1: 'PGBK', 2: 'Y', 3: 'BK', 4: 'C' };
+const INK_CAPABILITIES = [
+  ['measure_bk_level', 'BK'],
+  ['measure_m_level', 'M'],
+  ['measure_c_level', 'C'],
+  ['measure_pgbk_level', 'PGBK'],
+  ['measure_y_level', 'Y'],
+];
+const INK_NAME_MAP = {
+  InkBlk: 'BK',
+  InkPbk: 'PGBK',
+  InkCia: 'C',
+  InkMaz: 'M',
+  InkYel: 'Y',
+  InkMbk: 'BK',
+};
 const http = require('http');
 
 module.exports = class PrinterDevice extends Homey.Device {
@@ -45,13 +60,7 @@ module.exports = class PrinterDevice extends Homey.Device {
   async pollPrinterStatus() {
     try {
       const status = await this.getCanonPrinterStatus(this.getStoreValue('ip'));
-      await this.setAvailable();
-      await this.setCapabilityValue('measure_bk_level', status.ink.BK.levelPercent);
-      await this.setCapabilityValue('measure_m_level', status.ink.M.levelPercent);
-      await this.setCapabilityValue('measure_c_level', status.ink.C.levelPercent);
-      await this.setCapabilityValue('measure_pgbk_level', status.ink.PGBK.levelPercent);
-      await this.setCapabilityValue('measure_y_level', status.ink.Y.levelPercent);
-      await this.setCapabilityValue('measure_signal_strength', status.signalStrength);
+      await this.applyPrinterStatus(status);
     } catch (error) {
       this.error('Error updating printer status:', error.message);
       await this.setUnavailable(this.homey.__('errors.unreachable'));
@@ -61,13 +70,7 @@ module.exports = class PrinterDevice extends Homey.Device {
   async pollPrinterStatus2() {
     try {
       const status = await this.getCanonPrinterStatus2(this.getStoreValue('ip'));
-      await this.setAvailable();
-      await this.setCapabilityValue('measure_bk_level', status.ink.BK.levelPercent);
-      await this.setCapabilityValue('measure_m_level', status.ink.M.levelPercent);
-      await this.setCapabilityValue('measure_c_level', status.ink.C.levelPercent);
-      await this.setCapabilityValue('measure_pgbk_level', status.ink.PGBK.levelPercent);
-      await this.setCapabilityValue('measure_y_level', status.ink.Y.levelPercent);
-      await this.setCapabilityValue('measure_signal_strength', status.signalStrength);
+      await this.applyPrinterStatus(status);
     } catch (error) {
       this.error('Error updating printer status:', error.message);
       this.log('Stack trace:', error.stack);
@@ -75,22 +78,46 @@ module.exports = class PrinterDevice extends Homey.Device {
     }
   }
 
+  async applyPrinterStatus(status) {
+    await this.setAvailable();
+    for (const [capabilityId, inkKey] of INK_CAPABILITIES) {
+      await this.updateInkCapability(capabilityId, status.ink[inkKey]);
+    }
+
+    const signalStrength = this.getSignalStrengthValue(status);
+    await this.updateCapabilityValue('measure_signal_strength', signalStrength);
+  }
+
+  async updateInkCapability(capabilityId, inkStatus) {
+    const value = inkStatus ? inkStatus.levelPercent : null;
+    await this.updateCapabilityValue(capabilityId, value);
+  }
+
+  async updateCapabilityValue(capabilityId, value) {
+    if (!this.hasCapability(capabilityId)) {
+      return;
+    }
+
+    await this.setCapabilityValue(capabilityId, value);
+  }
+
+  getSignalStrengthValue(status) {
+    if (typeof status.signalStrength === 'number' && !Number.isNaN(status.signalStrength)) {
+      return status.signalStrength;
+    }
+
+    if (typeof status.linkQuality === 'number' && !Number.isNaN(status.linkQuality)) {
+      return status.linkQuality;
+    }
+
+    return null;
+  }
+
   async getCanonPrinterStatus(printerIp) {
     try {
       const res = await axios.get(`http://${printerIp}/JS_MDL/model.js`);
       const js = await res.data;
-
-      const inkLevels = {};
-      const inkRegex = /inktank\[\d+\]=\[(\d+),(\d+),(\d+)\];/g;
-      let match;
-      while ((match = inkRegex.exec(js)) !== null) {
-        const [, colorId, levelIndex, statusIndex] = match.map(Number);
-        const colorName = COLOR_MAP[colorId] ?? `INK_${colorId}`;
-        inkLevels[colorName] = {
-          levelPercent: INK_LEVEL_MAP[levelIndex],  // null if unknown
-          status: INK_STATUS_MAP[statusIndex] ?? 'unknown',
-        };
-      }
+      const inkLevels = this.parseInkLevels(js, COLOR_MAP);
 
       const signalMatch = js.match(/g_signal_strength\s*=\s*'(\d+)'/);
       const linkMatch   = js.match(/g_link_quality\s*=\s*'(\d+)'/);
@@ -117,17 +144,7 @@ module.exports = class PrinterDevice extends Homey.Device {
       const res = await axios.get(`http://${ip}/js/model.js`, { httpAgent: agent, timeout: 5000 });
       this.log('Fetched js/model.js');
       const js = await res.data;
-      const inkLevels = {};
-      const inkRegex = /inktank\[\d+\]=\[(\d+),(\d+),(\d+)\];/g;
-      let inkmatch;
-      while ((inkmatch = inkRegex.exec(js)) !== null) {
-        const [, colorId, levelIndex, statusIndex] = inkmatch.map(Number);
-        const colorName = M2_COLOR_MAP[colorId] ?? `INK_${colorId}`;
-        inkLevels[colorName] = {
-          levelPercent: INK_LEVEL_MAP[levelIndex],  // null if unknown
-          status: INK_STATUS_MAP[statusIndex] ?? 'unknown',
-        };
-      }
+      const inkLevels = this.parseInkLevels(js, M2_COLOR_MAP);
       const match = data.match(/Signal Strength[\s\S]*?<td[^>]*>\s*(\d+%)\s*<\/td>/);
       if (!match) throw new Error('Signal Strength not found');
       const raw = match[1];
@@ -139,6 +156,36 @@ module.exports = class PrinterDevice extends Homey.Device {
     } catch (error) {
       throw new Error('Failed to fetch or parse printer status (method 2): ' + error.message);
     }
+  }
+
+  parseInkLevels(js, fallbackColorMap) {
+    const inkLevels = {};
+    const colorOrder = this.parseInkColorOrder(js);
+    const inkRegex = /inktank\[\d+\]=\[(\d+),(\d+),(\d+)\];/g;
+    let match;
+
+    while ((match = inkRegex.exec(js)) !== null) {
+      const [, colorId, levelIndex, statusIndex] = match.map(Number);
+      const colorName = colorOrder[colorId] ?? fallbackColorMap[colorId] ?? `INK_${colorId}`;
+      inkLevels[colorName] = {
+        levelPercent: INK_LEVEL_MAP[levelIndex],
+        status: INK_STATUS_MAP[statusIndex] ?? 'unknown',
+      };
+    }
+
+    return inkLevels;
+  }
+
+  parseInkColorOrder(js) {
+    const match = js.match(/var\s+inkCOL\s*=\s*\[([^\]]+)\];/i);
+    if (!match) {
+      return [];
+    }
+
+    return match[1]
+      .split(',')
+      .map((value) => value.trim().replace(/^['"]|['"]$/g, ''))
+      .map((value) => INK_NAME_MAP[value] ?? value);
   }
 
   /**
