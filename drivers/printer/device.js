@@ -5,7 +5,7 @@ const axios = require('axios');
 const INK_LEVEL_MAP = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0, null];
 const INK_STATUS_MAP = ['ok', 'low', 'empty', 'unrecognized'];
 const COLOR_MAP = { 0: 'BK', 1: 'PGBK', 2: 'C', 3: 'M', 4: 'Y' };
-const M2_COLOR_MAP = { 0: 'M', 1: 'BK', 2: 'Y', 3: 'PGBK', 4: 'C' };
+const M2_COLOR_MAP = { 0: 'M', 1: 'PGBK', 2: 'Y', 3: 'BK', 4: 'C' };
 const http = require('http');
 
 module.exports = class PrinterDevice extends Homey.Device {
