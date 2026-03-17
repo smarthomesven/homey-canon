@@ -5,6 +5,8 @@ const axios = require('axios');
 const INK_LEVEL_MAP = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0, null];
 const INK_STATUS_MAP = ['ok', 'low', 'empty', 'unrecognized'];
 const COLOR_MAP = { 0: 'BK', 1: 'PGBK', 2: 'C', 3: 'M', 4: 'Y' };
+const M2_COLOR_MAP = { 0: 'M', 1: 'BK', 2: 'Y', 3: 'PGBK', 4: 'C' };
+
 
 module.exports = class PrinterDevice extends Homey.Device {
 
@@ -15,6 +17,17 @@ module.exports = class PrinterDevice extends Homey.Device {
     this.log('PrinterDevice has been initialized');
     if (!this.getStoreValue('method')) {
       await this.setStoreValue('method', 1);
+    }
+    // migraties
+    if (this.getStoreValue('method') === 2) {
+      if (!this.getStoreValue('ink_level_migration_done')) {
+        await this.addCapability('measure_bk_level');
+        await this.addCapability('measure_m_level');
+        await this.addCapability('measure_c_level');
+        await this.addCapability('measure_pgbk_level');
+        await this.addCapability('measure_y_level');
+        await this.setStoreValue('has_ink_levels', true);
+      }
     }
     if (this.getStoreValue('method') === 1) {
       this._interval = this.homey.setInterval(async () => {
@@ -49,6 +62,11 @@ module.exports = class PrinterDevice extends Homey.Device {
     try {
       const status = await this.getCanonPrinterStatus2(this.getStoreValue('ip'));
       await this.setAvailable();
+      await this.setCapabilityValue('measure_bk_level', status.ink.BK.levelPercent);
+      await this.setCapabilityValue('measure_m_level', status.ink.M.levelPercent);
+      await this.setCapabilityValue('measure_c_level', status.ink.C.levelPercent);
+      await this.setCapabilityValue('measure_pgbk_level', status.ink.PGBK.levelPercent);
+      await this.setCapabilityValue('measure_y_level', status.ink.Y.levelPercent);
       await this.setCapabilityValue('measure_signal_strength', status.signalStrength);
     } catch (error) {
       this.error('Error updating printer status:', error.message);
@@ -89,11 +107,25 @@ module.exports = class PrinterDevice extends Homey.Device {
   async getCanonPrinterStatus2(printerIp) {
     try {
       const { data } = await axios.get(`http://${printerIp}/errindex.html`);
+      const res = await axios.get(`http://${printerIp}/js/model.js`);
+      const js = await res.data;
+      const inkLevels = {};
+      const inkRegex = /inktank\[\d+\]=\[(\d+),(\d+),(\d+)\];/g;
+      let inkmatch;
+      while ((inkmatch = inkRegex.exec(js)) !== null) {
+        const [, colorId, levelIndex, statusIndex] = inkmatch.map(Number);
+        const colorName = M2_COLOR_MAP[colorId] ?? `INK_${colorId}`;
+        inkLevels[colorName] = {
+          levelPercent: INK_LEVEL_MAP[levelIndex],  // null if unknown
+          status: INK_STATUS_MAP[statusIndex] ?? 'unknown',
+        };
+      }
       const match = data.match(/Signal Strength[\s\S]*?<td[^>]*>\s*(\d+%)\s*<\/td>/);
       if (!match) throw new Error('Signal Strength not found');
       const raw = match[1];
-      const value = parseInt(raw);   // 54
+      const value = parseInt(raw);
       return {
+        ink: inkLevels,
         signalStrength: value,
       };
     } catch (error) {
@@ -106,13 +138,6 @@ module.exports = class PrinterDevice extends Homey.Device {
    */
   async onAdded() {
     this.log('PrinterDevice has been added');
-    if (this.getStoreValue('method') === 2) {
-      await this.removeCapability('measure_bk_level');
-      await this.removeCapability('measure_m_level');
-      await this.removeCapability('measure_c_level');
-      await this.removeCapability('measure_pgbk_level');
-      await this.removeCapability('measure_y_level');
-    }
   }
 
   /**
