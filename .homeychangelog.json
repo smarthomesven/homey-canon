@@ -31,5 +31,8 @@
   },
   "1.2.4": {
     "en": "Fix BK/PGBK for comms method 2"
+  },
+  "1.3.0": {
+    "en": "Added ink levels widget"
   }
 }
