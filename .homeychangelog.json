@@ -16,5 +16,8 @@
   },
   "1.1.0": {
     "en": "Added support for iX6800 series"
+  },
+  "1.2.0": {
+    "en": "Added support for ink levels on iX6850"
   }
 }
