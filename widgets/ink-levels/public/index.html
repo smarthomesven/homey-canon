@@ -301,10 +301,11 @@
        .catch(console.error);
 
     // Example: listen for realtime updates pushed from your app
-    // Homey.on('inkUpdate', data => {
-    //   if (data.levels)   InkWidget.setLevels(data.levels);
-    //   if (data.warnings) InkWidget.setWarnings(data.warnings);
-    // });
+     Homey.on('inkUpdate', data => {
+      if (data.deviceId !== Homey.getDeviceIds()[0]) return; // ignore other devices
+       if (data.levels)   InkWidget.setLevels(data.levels);
+       if (data.warnings) InkWidget.setWarnings(data.warnings);
+     });
   }
   </script>
 </body>

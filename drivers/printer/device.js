@@ -14,6 +14,7 @@ module.exports = class PrinterDevice extends Homey.Device {
    * onInit is called when the device is initialized.
    */
   async onInit() {
+    this._id = this.getData().id;
     this.log('PrinterDevice has been initialized');
     if (!this.getStoreValue('method')) {
       await this.setStoreValue('method', 1);
@@ -52,6 +53,23 @@ module.exports = class PrinterDevice extends Homey.Device {
       await this.setCapabilityValue('measure_pgbk_level', status.ink.PGBK.levelPercent);
       await this.setCapabilityValue('measure_y_level', status.ink.Y.levelPercent);
       await this.setCapabilityValue('measure_signal_strength', status.signalStrength);
+      await this.homey.api.realtime('inkUpdate', {
+        deviceId: this.getData().id,
+        levels: {
+          BK: status.ink.BK.levelPercent,
+          M: status.ink.M.levelPercent,
+          C: status.ink.C.levelPercent,
+          PGBK: status.ink.PGBK.levelPercent,
+          Y: status.ink.Y.levelPercent,
+        },
+        warnings: {
+          BK: status.ink.BK.levelPercent <= 10,
+          M: status.ink.M.levelPercent <= 10,
+          C: status.ink.C.levelPercent <= 10,
+          PGBK: status.ink.PGBK.levelPercent <= 10,
+          Y: status.ink.Y.levelPercent <= 10,
+        },
+      });
     } catch (error) {
       this.error('Error updating printer status:', error.message);
       await this.setUnavailable(this.homey.__('errors.unreachable'));
@@ -68,6 +86,23 @@ module.exports = class PrinterDevice extends Homey.Device {
       await this.setCapabilityValue('measure_pgbk_level', status.ink.PGBK.levelPercent);
       await this.setCapabilityValue('measure_y_level', status.ink.Y.levelPercent);
       await this.setCapabilityValue('measure_signal_strength', status.signalStrength);
+      await this.homey.api.realtime('inkUpdate', {
+        deviceId: this.getData().id,
+        levels: {
+          BK: status.ink.BK.levelPercent,
+          M: status.ink.M.levelPercent,
+          C: status.ink.C.levelPercent,
+          PGBK: status.ink.PGBK.levelPercent,
+          Y: status.ink.Y.levelPercent,
+        },
+        warnings: {
+          BK: status.ink.BK.levelPercent <= 10,
+          M: status.ink.M.levelPercent <= 10,
+          C: status.ink.C.levelPercent <= 10,
+          PGBK: status.ink.PGBK.levelPercent <= 10,
+          Y: status.ink.Y.levelPercent <= 10,
+        },
+      });
     } catch (error) {
       this.error('Error updating printer status:', error.message);
       this.log('Stack trace:', error.stack);
