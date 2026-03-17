@@ -22,5 +22,8 @@
   },
   "1.2.1": {
     "en": "Added more logging"
+  },
+  "1.2.2": {
+    "en": "Fixed socket hang up error"
   }
 }
