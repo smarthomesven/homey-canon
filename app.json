@@ -104,6 +104,34 @@
             "filter": "driver_id=printer"
           }
         ]
+      },
+      {
+        "id": "alarm_running_changed",
+        "title": {
+          "en": "Printing state changed",
+          "nl": "Afdrukstatus veranderd"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=printer"
+          }
+        ]
+      },
+      {
+        "id": "alarm_printer_error_changed",
+        "title": {
+          "en": "Printer error state changed",
+          "nl": "Printerfoutstatus veranderd"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=printer"
+          }
+        ]
       }
     ]
   },
@@ -113,18 +141,29 @@
         "en": "Printer"
       },
       "class": "other",
-      "capabilities": [
-        "measure_pgbk_level",
-        "measure_bk_level",
-        "measure_c_level",
-        "measure_m_level",
-        "measure_y_level",
-        "measure_signal_strength"
-      ],
+      "capabilities": [],
       "capabilitiesOptions": {
         "measure_signal_strength": {
           "units": {
             "en": "%"
+          }
+        },
+        "alarm_running": {
+          "insightsTitleTrue": {
+            "en": "Printer started printing",
+            "nl": "Printer is begonnen met afdrukken"
+          },
+          "insightsTitleFalse": {
+            "en": "Printer stopped printing",
+            "nl": "Printer is gestopt met afdrukken"
+          },
+          "titleTrue": {
+            "en": "Printing",
+            "nl": "Bezig met afdrukken"
+          },
+          "titleFalse": {
+            "en": "Idle",
+            "nl": "Inactief"
           }
         }
       },
@@ -139,6 +178,23 @@
         "large": "/drivers/printer/assets/images/large.png",
         "xlarge": "/drivers/printer/assets/images/xlarge.png"
       },
+      "settings": [
+        {
+          "id": "poll_interval",
+          "type": "number",
+          "label": {
+            "en": "Poll interval (minutes)",
+            "nl": "Poll-interval (minuten)"
+          },
+          "hint": {
+            "en": "How often the printer status should be refreshed.",
+            "nl": "Hoe vaak de printerstatus moet worden vernieuwd."
+          },
+          "value": 2,
+          "min": 1,
+          "max": 60
+        }
+      ],
       "pair": [
         {
           "id": "ip"
@@ -148,6 +204,33 @@
     }
   ],
   "capabilities": {
+    "alarm_printer_error": {
+      "type": "boolean",
+      "title": {
+        "en": "Printer error",
+        "nl": "Printerfout"
+      },
+      "insightsTitleTrue": {
+        "en": "Printer error detected",
+        "nl": "Printerfout gedetecteerd"
+      },
+      "insightsTitleFalse": {
+        "en": "Printer error cleared",
+        "nl": "Printerfout opgelost"
+      },
+      "titleTrue": {
+        "en": "Error",
+        "nl": "Fout"
+      },
+      "titleFalse": {
+        "en": "OK",
+        "nl": "OK"
+      },
+      "icon": "/assets/error.svg",
+      "getable": true,
+      "setable": false,
+      "insights": true
+    },
     "measure_bk_level": {
       "type": "number",
       "title": {

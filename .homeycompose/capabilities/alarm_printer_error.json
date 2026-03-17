@@ -1,0 +1,27 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Printer error",
+    "nl": "Printerfout"
+  },
+  "insightsTitleTrue": {
+    "en": "Printer error detected",
+    "nl": "Printerfout gedetecteerd"
+  },
+  "insightsTitleFalse": {
+    "en": "Printer error cleared",
+    "nl": "Printerfout opgelost"
+  },
+  "titleTrue": {
+    "en": "Error",
+    "nl": "Fout"
+  },
+  "titleFalse": {
+    "en": "OK",
+    "nl": "OK"
+  },
+  "icon": "/assets/error.svg",
+  "getable": true,
+  "setable": false,
+  "insights": true
+}

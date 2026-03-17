@@ -4,14 +4,69 @@ const Homey = require('homey');
 const axios = require('axios');
 const INK_LEVEL_MAP = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0, null];
 const INK_STATUS_MAP = ['ok', 'low', 'empty', 'unrecognized'];
+const DEFAULT_POLL_INTERVAL_MINUTES = 2;
+const MIN_POLL_INTERVAL_MINUTES = 1;
 const COLOR_MAP = { 0: 'BK', 1: 'PGBK', 2: 'C', 3: 'M', 4: 'Y' };
 const M2_COLOR_MAP = { 0: 'M', 1: 'PGBK', 2: 'Y', 3: 'BK', 4: 'C' };
+const LEGACY_CAPABILITIES = [
+  'alarm_printing',
+];
+const CAPABILITY_OPTIONS = {
+  measure_signal_strength: {
+    units: {
+      en: '%',
+    },
+  },
+  alarm_running: {
+    insightsTitleTrue: {
+      en: 'Printer started printing',
+      nl: 'Printer is begonnen met afdrukken',
+    },
+    insightsTitleFalse: {
+      en: 'Printer stopped printing',
+      nl: 'Printer is gestopt met afdrukken',
+    },
+    titleTrue: {
+      en: 'Printing',
+      nl: 'Bezig met afdrukken',
+    },
+    titleFalse: {
+      en: 'Idle',
+      nl: 'Inactief',
+    },
+  },
+  alarm_printer_error: {
+    insightsTitleTrue: {
+      en: 'Printer error detected',
+      nl: 'Printerfout gedetecteerd',
+    },
+    insightsTitleFalse: {
+      en: 'Printer error cleared',
+      nl: 'Printerfout opgelost',
+    },
+    titleTrue: {
+      en: 'Error',
+      nl: 'Fout',
+    },
+    titleFalse: {
+      en: 'OK',
+      nl: 'OK',
+    },
+  },
+};
 const INK_CAPABILITIES = [
   ['measure_bk_level', 'BK'],
   ['measure_m_level', 'M'],
   ['measure_c_level', 'C'],
   ['measure_pgbk_level', 'PGBK'],
   ['measure_y_level', 'Y'],
+];
+const INK_CAPABILITY_BY_KEY = Object.fromEntries(INK_CAPABILITIES.map(([capabilityId, inkKey]) => [inkKey, capabilityId]));
+const MANAGED_CAPABILITIES = [
+  ...INK_CAPABILITIES.map(([capabilityId]) => capabilityId),
+  'measure_signal_strength',
+  'alarm_running',
+  'alarm_printer_error',
 ];
 const INK_NAME_MAP = {
   InkBlk: 'BK',
@@ -33,28 +88,8 @@ module.exports = class PrinterDevice extends Homey.Device {
     if (!this.getStoreValue('method')) {
       await this.setStoreValue('method', 1);
     }
-    // migraties
-    if (this.getStoreValue('method') === 2) {
-      if (!this.getStoreValue('ink_level_migration_done')) {
-        await this.addCapability('measure_bk_level');
-        await this.addCapability('measure_m_level');
-        await this.addCapability('measure_c_level');
-        await this.addCapability('measure_pgbk_level');
-        await this.addCapability('measure_y_level');
-        await this.setStoreValue('has_ink_levels', true);
-      }
-    }
-    if (this.getStoreValue('method') === 1) {
-      this._interval = this.homey.setInterval(async () => {
-        await this.pollPrinterStatus();
-      }, 2 * 60 * 1000);
-      await this.pollPrinterStatus();
-    } else if (this.getStoreValue('method') === 2) {
-      this._interval = this.homey.setInterval(async () => {
-        await this.pollPrinterStatus2();
-      }, 2 * 60 * 1000);
-      await this.pollPrinterStatus2();
-    }
+    await this.cleanupLegacyCapabilities();
+    await this.startPolling();
   }
 
   async pollPrinterStatus() {
@@ -80,12 +115,16 @@ module.exports = class PrinterDevice extends Homey.Device {
 
   async applyPrinterStatus(status) {
     await this.setAvailable();
+    await this.syncCapabilities(status);
+    await this.syncCapabilityOptions();
     for (const [capabilityId, inkKey] of INK_CAPABILITIES) {
       await this.updateInkCapability(capabilityId, status.ink[inkKey]);
     }
 
     const signalStrength = this.getSignalStrengthValue(status);
     await this.updateCapabilityValue('measure_signal_strength', signalStrength);
+    await this.updateCapabilityValue('alarm_running', status.isPrinting);
+    await this.updateCapabilityValue('alarm_printer_error', status.hasError);
   }
 
   async updateInkCapability(capabilityId, inkStatus) {
@@ -95,6 +134,10 @@ module.exports = class PrinterDevice extends Homey.Device {
 
   async updateCapabilityValue(capabilityId, value) {
     if (!this.hasCapability(capabilityId)) {
+      return;
+    }
+
+    if (this.getCapabilityValue(capabilityId) === value) {
       return;
     }
 
@@ -126,6 +169,10 @@ module.exports = class PrinterDevice extends Homey.Device {
         ink: inkLevels,
         signalStrength: signalMatch ? parseInt(signalMatch[1]) : null,
         linkQuality:    linkMatch   ? parseInt(linkMatch[1])   : null,
+        errorCode: this.parseStatusField(js, 'g_err_msg_id'),
+        printJobState: this.parseStatusField(js, 'g_prndoc'),
+        hasError: this.parsePrinterError(js),
+        isPrinting: this.parsePrintingState(js),
       };
     } catch (error) {
       throw new Error('Failed to fetch or parse printer status: ' + error.message);
@@ -152,6 +199,10 @@ module.exports = class PrinterDevice extends Homey.Device {
       return {
         ink: inkLevels,
         signalStrength: value,
+        errorCode: this.parseStatusField(js, 'g_err_msg_id'),
+        printJobState: this.parseStatusField(js, 'g_prndoc'),
+        hasError: this.parsePrinterError(js),
+        isPrinting: this.parsePrintingState(js),
       };
     } catch (error) {
       throw new Error('Failed to fetch or parse printer status (method 2): ' + error.message);
@@ -188,6 +239,83 @@ module.exports = class PrinterDevice extends Homey.Device {
       .map((value) => INK_NAME_MAP[value] ?? value);
   }
 
+  parseStatusField(js, fieldName) {
+    const match = js.match(new RegExp(`${fieldName}\\s*=\\s*'([^']*)'`, 'i'));
+    return match ? match[1] : null;
+  }
+
+  parsePrinterError(js) {
+    const errorCode = this.parseStatusField(js, 'g_err_msg_id');
+    if (!errorCode) {
+      return false;
+    }
+
+    return errorCode !== 'HTTP_ERR_DISP_IDLE';
+  }
+
+  parsePrintingState(js) {
+    const printJobState = this.parseStatusField(js, 'g_prndoc');
+    if (!printJobState) {
+      return false;
+    }
+
+    return printJobState !== '0';
+  }
+
+  async cleanupLegacyCapabilities() {
+    for (const capabilityId of LEGACY_CAPABILITIES) {
+      if (this.hasCapability(capabilityId)) {
+        await this.removeCapability(capabilityId);
+      }
+    }
+  }
+
+  async syncCapabilities(status) {
+    const desiredCapabilities = [
+      ...Object.keys(status.ink)
+        .map((inkKey) => INK_CAPABILITY_BY_KEY[inkKey])
+        .filter(Boolean),
+    ];
+
+    if (this.getSignalStrengthValue(status) !== null || this.hasCapability('measure_signal_strength')) {
+      desiredCapabilities.push('measure_signal_strength');
+    }
+
+    desiredCapabilities.push('alarm_running', 'alarm_printer_error');
+
+    const desiredSet = new Set(desiredCapabilities);
+    const existingCapabilities = this.getCapabilities();
+
+    for (const capabilityId of MANAGED_CAPABILITIES) {
+      if (!desiredSet.has(capabilityId) && this.hasCapability(capabilityId)) {
+        await this.removeCapability(capabilityId);
+      }
+    }
+
+    for (const capabilityId of desiredCapabilities) {
+      if (!this.hasCapability(capabilityId)) {
+        await this.addCapability(capabilityId);
+      }
+    }
+  }
+
+  async syncCapabilityOptions() {
+    for (const [capabilityId, options] of Object.entries(CAPABILITY_OPTIONS)) {
+      if (!this.hasCapability(capabilityId)) {
+        continue;
+      }
+
+      const currentOptions = this.getCapabilityOptions(capabilityId) || {};
+      const needsUpdate = Object.entries(options).some(([key, value]) => {
+        return JSON.stringify(currentOptions[key] ?? null) !== JSON.stringify(value);
+      });
+
+      if (needsUpdate) {
+        await this.setCapabilityOptions(capabilityId, options);
+      }
+    }
+  }
+
   /**
    * onAdded is called when the user adds the device, called just after pairing.
    */
@@ -205,6 +333,9 @@ module.exports = class PrinterDevice extends Homey.Device {
    */
   async onSettings({ oldSettings, newSettings, changedKeys }) {
     this.log('PrinterDevice settings where changed');
+    if (changedKeys.includes('poll_interval')) {
+      await this.startPolling();
+    }
   }
 
   /**
@@ -221,9 +352,40 @@ module.exports = class PrinterDevice extends Homey.Device {
    */
   async onDeleted() {
     this.log('PrinterDevice has been deleted');
+    this.stopPolling();
+  }
+
+  async startPolling() {
+    this.stopPolling();
+
+    const method = this.getStoreValue('method');
+    const pollMethod = method === 2
+      ? this.pollPrinterStatus2.bind(this)
+      : this.pollPrinterStatus.bind(this);
+    const intervalMs = this.getPollIntervalMs();
+
+    this._interval = this.homey.setInterval(async () => {
+      await pollMethod();
+    }, intervalMs);
+
+    await pollMethod();
+  }
+
+  stopPolling() {
     if (this._interval) {
       this.homey.clearInterval(this._interval);
+      this._interval = null;
     }
+  }
+
+  getPollIntervalMs() {
+    const settings = this.getSettings();
+    const configuredMinutes = Number(settings.poll_interval);
+    const minutes = Number.isFinite(configuredMinutes) && configuredMinutes >= MIN_POLL_INTERVAL_MINUTES
+      ? configuredMinutes
+      : DEFAULT_POLL_INTERVAL_MINUTES;
+
+    return minutes * 60 * 1000;
   }
 
 };

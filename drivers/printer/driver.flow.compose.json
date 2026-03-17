@@ -34,6 +34,20 @@
         "en": "Yellow ink level changed",
         "nl": "Yellow inktniveau veranderd"
       }
+    },
+    {
+      "id": "alarm_running_changed",
+      "title": {
+        "en": "Printing state changed",
+        "nl": "Afdrukstatus veranderd"
+      }
+    },
+    {
+      "id": "alarm_printer_error_changed",
+      "title": {
+        "en": "Printer error state changed",
+        "nl": "Printerfoutstatus veranderd"
+      }
     }
   ]
 }

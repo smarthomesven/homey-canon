@@ -24,7 +24,12 @@ module.exports = class PrinterDriver extends Homey.Driver {
       try {
         this.log('Checking IP address:', data.ip);
         const printer = await detectCanonPrinter(ip, { timeout: 5000 });
-        return { success: true, method: printer.method };
+        return {
+          success: true,
+          method: printer.method,
+          capabilities: printer.capabilities,
+          capabilitiesOptions: printer.capabilitiesOptions,
+        };
       } catch (error) {
         this.error('Error during IP check:', error.message);
         return { success: false };
